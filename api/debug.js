@@ -21,7 +21,7 @@ Tasks:
     headers: {
       "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
       "Content-Type": "application/json",
-      "HTTP-Referer": "https://your-site-name.vercel.app", // Change this to your real domain
+      "HTTP-Referer": "https://code-land-gamma.vercel.app/", // Change this to your real domain
       "X-Title": "VR Debug Assistant"
     },
     body: JSON.stringify({
@@ -37,3 +37,4 @@ Tasks:
 
   res.status(200).json({ suggestions: reply });
 }
+
