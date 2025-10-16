@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>VR Debugging Assistant</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+  </head>
+  <body>
+    <a-scene>
+      <!-- Cursor -->
+      <a-entity cursor="rayOrigin: mouse" raycaster="objects: .clickable"></a-entity>
+      <a-sky color="#ECECEC"></a-sky>
+
+      <!-- Panel -->
+      <a-entity id="codePanel"
+        geometry="primitive: plane; height: 2; width: 3"
+        position="0 1.6 -3"
+        material="color: #222">
+        <a-text id="aiResponse"
+          value="Upload your code to get AI feedback!"
+          align="left"
+          width="2.8"
+          wrap-count="60"
+          color="#FFF"
+          position="-1.4 0.8 0">
+        </a-text>
+      </a-entity>
+
+      <!-- Button -->
+      <a-box id="uploadBtn"
+        position="-1 0.5 -2"
+        depth="0.1"
+        height="0.4"
+        width="1"
+        color="#4CAF50"
+        class="clickable">
+        <a-text value="Upload Code"
+          align="center"
+          position="0 0 0.06"
+          color="#FFF"
+          width="1"></a-text>
+      </a-box>
+
+      <a-entity camera look-controls position="0 1.6 0"></a-entity>
+    </a-scene>
+
+    <input type="file" id="fileInput" style="display:none" accept=".js,.py,.ts,.txt" />
+    <script src="app.js"></script>
+  </body>
+</html>
