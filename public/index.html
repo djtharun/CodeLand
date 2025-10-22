@@ -1,51 +1,141 @@
 <!DOCTYPE html>
-<html>
-  <head>
-    <meta charset="utf-8" />
-    <title>VR Debugging Assistant</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
-  </head>
-  <body>
-    <a-scene>
-      <!-- Cursor -->
-      <a-entity cursor="rayOrigin: mouse" raycaster="objects: .clickable"></a-entity>
-      <a-sky color="#ECECEC"></a-sky>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>VR Debugging Assistant</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <!-- UI Overlay -->
+  <div id="ui-overlay">
+    <h2>🔍 VR Debug Assistant</h2>
+    
+    <div class="control-group">
+      <label>Upload Code File</label>
+      <input type="file" id="fileInput" accept=".js,.py,.ts,.java,.cpp,.c,.cs,.txt">
+    </div>
 
-      <!-- Panel -->
-      <a-entity id="codePanel"
-        geometry="primitive: plane; height: 2; width: 3"
-        position="0 1.6 -3"
-        material="color: #222">
-        <a-text id="aiResponse"
-          value="Upload your code to get AI feedback!"
-          align="left"
-          width="2.8"
-          wrap-count="60"
-          color="#FFF"
-          position="-1.4 0.8 0">
-        </a-text>
-      </a-entity>
+    <div class="control-group">
+      <label>Select Language</label>
+      <select id="langSelect">
+        <option value="javascript">JavaScript</option>
+        <option value="python">Python</option>
+        <option value="typescript">TypeScript</option>
+        <option value="java">Java</option>
+        <option value="csharp">C#</option>
+        <option value="cpp">C++</option>
+      </select>
+    </div>
 
-      <!-- Button -->
-      <a-box id="uploadBtn"
-        position="-1 0.5 -2"
-        depth="0.1"
-        height="0.4"
-        width="1"
-        color="#4CAF50"
-        class="clickable">
-        <a-text value="Upload Code"
-          align="center"
-          position="0 0 0.06"
-          color="#FFF"
-          width="1"></a-text>
+    <div class="control-group">
+      <label>Analysis Mode</label>
+      <select id="modeSelect">
+        <option value="static">Static Analysis</option>
+        <option value="ai">AI Analysis (API)</option>
+      </select>
+    </div>
+
+    <button class="btn" id="analyzeBtn">🤖 Analyze Code</button>
+    <button class="btn btn-secondary" id="visualizeBtn">📊 Visualize Flow</button>
+    <button class="btn btn-danger" id="clearBtn">🗑️ Clear Session</button>
+
+    <div id="status">Ready to debug...</div>
+
+    <div id="help-text">
+      <strong>Controls:</strong><br>
+      • Mouse: Look around<br>
+      • Click: Interact with nodes<br>
+      • WASD: Move (desktop)
+    </div>
+  </div>
+
+  <!-- A-Frame VR Scene -->
+  <a-scene background="color: #0a0e27" fog="type: exponential; color: #0a0e27; density: 0.1">
+    <!-- Camera -->
+    <a-entity id="rig" position="0 1.6 5">
+      <a-camera look-controls wasd-controls="acceleration: 20">
+        <a-cursor
+          color="#00ff88"
+          raycaster="objects: .clickable"
+          fuse="true"
+          fuse-timeout="1500">
+        </a-cursor>
+      </a-camera>
+    </a-entity>
+
+    <!-- Lighting -->
+    <a-light type="ambient" color="#445566" intensity="0.5"></a-light>
+    <a-light type="point" position="0 4 0" color="#00ff88" intensity="1"></a-light>
+    <a-light type="point" position="5 3 5" color="#3498db" intensity="0.7"></a-light>
+    <a-light type="point" position="-5 3 -5" color="#e74c3c" intensity="0.7"></a-light>
+
+    <!-- Main Display Panel -->
+    <a-entity id="mainPanel" position="0 2 -4">
+      <a-plane width="6" height="3.5" color="#0f1419" opacity="0.95" shader="flat"></a-plane>
+      <a-plane width="6.1" height="3.6" color="#00ff88" opacity="0.2" shader="flat" position="0 0 -0.01"></a-plane>
+
+      <a-text
+        value="AI DEBUGGING ASSISTANT"
+        align="center"
+        position="0 1.5 0.01"
+        color="#00ff88"
+        width="5"
+        font="mozillavr">
+      </a-text>
+
+      <a-text
+        id="mainText"
+        value="Upload a code file to begin analysis..."
+        align="left"
+        position="-2.8 0.8 0.01"
+        width="5.5"
+        wrap-count="65"
+        color="#ffffff"
+        line-height="50">
+      </a-text>
+
+      <a-circle
+        id="statusLight"
+        radius="0.08"
+        position="2.6 1.5 0.01"
+        color="#00ff88"
+        opacity="0.8">
+        <a-animation
+          attribute="scale"
+          from="1 1 1"
+          to="1.3 1.3 1"
+          direction="alternate"
+          repeat="indefinite"
+          dur="1000">
+        </a-animation>
+      </a-circle>
+    </a-entity>
+
+    <!-- Code Visualization Area -->
+    <a-entity id="codeViz" position="0 1.5 -8"></a-entity>
+
+    <!-- Interactive Buttons -->
+    <a-entity id="vrButtons" position="0 0.8 -3">
+      <a-box id="vrAnalyzeBtn" class="clickable" position="-1.5 0 0" depth="0.2" height="0.5" width="1.2" color="#00ff88" opacity="0.9">
+        <a-text value="ANALYZE" align="center" position="0 0 0.11" color="#000" width="1.5"></a-text>
       </a-box>
 
-      <a-entity camera look-controls position="0 1.6 0"></a-entity>
-    </a-scene>
+      <a-box id="vrVisualizeBtn" class="clickable" position="0 0 0" depth="0.2" height="0.5" width="1.2" color="#3498db" opacity="0.9">
+        <a-text value="VISUALIZE" align="center" position="0 0 0.11" color="#fff" width="1.5"></a-text>
+      </a-box>
 
-    <input type="file" id="fileInput" style="display:none" accept=".js,.py,.ts,.txt" />
-    <script src="app.js"></script>
-  </body>
+      <a-box id="vrClearBtn" class="clickable" position="1.5 0 0" depth="0.2" height="0.5" width="1.2" color="#e74c3c" opacity="0.9">
+        <a-text value="CLEAR" align="center" position="0 0 0.11" color="#fff" width="1.5"></a-text>
+      </a-box>
+    </a-entity>
+
+    <!-- Floor -->
+    <a-plane rotation="-90 0 0" width="50" height="50" color="#0a0e27" shader="flat"></a-plane>
+  </a-scene>
+
+  <!-- Load Scripts -->
+  <script type="module" src="../src/js/main.js"></script>
+</body>
 </html>

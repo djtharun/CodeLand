@@ -1,0 +1,140 @@
+body {
+  margin: 0;
+  overflow: hidden;
+  font-family: 'Courier New', monospace;
+}
+
+#ui-overlay {
+  position: fixed;
+  top: 20px;
+  left: 20px;
+  z-index: 1000;
+  background: rgba(0, 0, 0, 0.85);
+  padding: 20px;
+  border-radius: 12px;
+  border: 2px solid #00ff88;
+  color: #fff;
+  max-width: 350px;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 8px 32px rgba(0, 255, 136, 0.2);
+}
+
+#ui-overlay h2 {
+  margin: 0 0 15px 0;
+  color: #00ff88;
+  font-size: 18px;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  text-shadow: 0 0 10px rgba(0, 255, 136, 0.5);
+}
+
+.btn {
+  background: linear-gradient(135deg, #00ff88, #00cc6a);
+  border: none;
+  padding: 12px 24px;
+  color: #000;
+  font-weight: bold;
+  cursor: pointer;
+  border-radius: 6px;
+  margin: 5px 0;
+  width: 100%;
+  font-size: 14px;
+  transition: all 0.3s;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(0, 255, 136, 0.4);
+}
+
+.btn:active {
+  transform: translateY(0);
+}
+
+.btn-secondary {
+  background: linear-gradient(135deg, #3498db, #2980b9);
+  color: #fff;
+}
+
+.btn-secondary:hover {
+  box-shadow: 0 5px 15px rgba(52, 152, 219, 0.4);
+}
+
+.btn-danger {
+  background: linear-gradient(135deg, #e74c3c, #c0392b);
+  color: #fff;
+}
+
+.btn-danger:hover {
+  box-shadow: 0 5px 15px rgba(231, 76, 60, 0.4);
+}
+
+#status {
+  margin: 15px 0;
+  padding: 10px;
+  background: rgba(0, 255, 136, 0.1);
+  border-left: 3px solid #00ff88;
+  border-radius: 4px;
+  font-size: 12px;
+  min-height: 20px;
+}
+
+.control-group {
+  margin: 15px 0;
+  padding: 15px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+}
+
+.control-group label {
+  display: block;
+  margin-bottom: 8px;
+  color: #00ff88;
+  font-size: 12px;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+select, input[type="file"] {
+  width: 100%;
+  padding: 8px;
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid #00ff88;
+  color: #fff;
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+select:focus, input[type="file"]:focus {
+  outline: none;
+  border-color: #00ff88;
+  box-shadow: 0 0 10px rgba(0, 255, 136, 0.3);
+}
+
+#help-text {
+  font-size: 11px;
+  color: #888;
+  margin-top: 15px;
+  padding-top: 15px;
+  border-top: 1px solid #333;
+  line-height: 1.6;
+}
+
+#help-text strong {
+  color: #00ff88;
+}
+
+/* Loading Animation */
+.loading {
+  border-left-color: #ffaa00 !important;
+  animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}

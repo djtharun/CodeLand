@@ -1,8 +1,14 @@
 {
-  "dependencies": {
-    "cors": "^2.8.5",
-    "dotenv": "^17.2.3",
-    "express": "^5.1.0",
-    "node-fetch": "^3.3.2"
+  "name": "vr-debug-assistant",
+  "version": "1.0.0",
+  "description": "VR-based AI debugging assistant",
+  "main": "index.js",
+  "scripts": {
+    "dev": "vercel dev",
+    "build": "echo 'Build complete'",
+    "start": "vercel dev"
+  },
+  "devDependencies": {
+    "vercel": "^33.7.1"
   }
 }
