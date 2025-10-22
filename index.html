@@ -2,15 +2,16 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>VR Debugging Assistant</title>
+  <title>VR Debugging Assistant - Enhanced</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/ort.min.js"></script>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
   <!-- A-Frame VR Scene -->
   <a-scene background="color: #0a0e27" fog="type: exponential; color: #0a0e27; density: 0.1">
-    <!-- Camera -->
+    <!-- Camera with Voice Recognition -->
     <a-entity id="rig" position="0 1.6 5">
       <a-camera look-controls wasd-controls="acceleration: 20">
         <a-cursor
@@ -70,26 +71,52 @@
       </a-circle>
     </a-entity>
 
+    <!-- Code Execution Flow Visualization Area -->
+    <a-entity id="executionFlow" position="-6 2 -8"></a-entity>
+
+    <!-- Variable State Display -->
+    <a-entity id="variableStates" position="6 2 -8"></a-entity>
+
+    <!-- Error Timeline -->
+    <a-entity id="errorTimeline" position="0 0.5 -12"></a-entity>
+
     <!-- Code Visualization Area -->
     <a-entity id="codeViz" position="0 1.5 -8"></a-entity>
 
     <!-- Interactive Buttons -->
     <a-entity id="vrButtons" position="0 0.8 -3">
-      <a-box id="vrAnalyzeBtn" class="clickable" position="-1.5 0 0" depth="0.2" height="0.5" width="1.2" color="#00ff88" opacity="0.9">
+      <a-box id="vrAnalyzeBtn" class="clickable" position="-2.5 0 0" depth="0.2" height="0.5" width="1.2" color="#00ff88" opacity="0.9">
         <a-text value="ANALYZE" align="center" position="0 0 0.11" color="#000" width="1.5"></a-text>
       </a-box>
 
-      <a-box id="vrVisualizeBtn" class="clickable" position="0 0 0" depth="0.2" height="0.5" width="1.2" color="#3498db" opacity="0.9">
+      <a-box id="vrVisualizeBtn" class="clickable" position="-1 0 0" depth="0.2" height="0.5" width="1.2" color="#3498db" opacity="0.9">
         <a-text value="VISUALIZE" align="center" position="0 0 0.11" color="#fff" width="1.5"></a-text>
       </a-box>
 
-      <a-box id="vrClearBtn" class="clickable" position="1.5 0 0" depth="0.2" height="0.5" width="1.2" color="#e74c3c" opacity="0.9">
+      <a-box id="vrExecuteBtn" class="clickable" position="0.5 0 0" depth="0.2" height="0.5" width="1.2" color="#9b59b6" opacity="0.9">
+        <a-text value="EXECUTE" align="center" position="0 0 0.11" color="#fff" width="1.5"></a-text>
+      </a-box>
+
+      <a-box id="vrVoiceBtn" class="clickable" position="2 0 0" depth="0.2" height="0.5" width="1.2" color="#f39c12" opacity="0.9">
+        <a-text value="VOICE" align="center" position="0 0 0.11" color="#fff" width="1.5"></a-text>
+      </a-box>
+
+      <a-box id="vrClearBtn" class="clickable" position="3.5 0 0" depth="0.2" height="0.5" width="1.2" color="#e74c3c" opacity="0.9">
         <a-text value="CLEAR" align="center" position="0 0 0.11" color="#fff" width="1.5"></a-text>
       </a-box>
     </a-entity>
 
-    <!-- Floor -->
+    <!-- Breakpoint Markers Container -->
+    <a-entity id="breakpoints" position="0 1.5 -7"></a-entity>
+
+    <!-- Multi-user Avatars Container -->
+    <a-entity id="avatars"></a-entity>
+
+    <!-- Floor with Grid -->
     <a-plane rotation="-90 0 0" width="50" height="50" color="#0a0e27" shader="flat"></a-plane>
+    
+    <!-- Grid Helper -->
+    <a-entity id="grid" position="0 0.01 0"></a-entity>
   </a-scene>
 
   <!-- UI Overlay -->
@@ -117,25 +144,47 @@
       <label>Analysis Mode</label>
       <select id="modeSelect">
         <option value="static">Static Analysis</option>
+        <option value="codebert">CodeBERT (Local)</option>
         <option value="ai">AI Analysis (API)</option>
       </select>
     </div>
 
     <button class="btn" id="analyzeBtn">🤖 Analyze Code</button>
     <button class="btn btn-secondary" id="visualizeBtn">📊 Visualize Flow</button>
+    <button class="btn" id="executeBtn" style="background: linear-gradient(135deg, #9b59b6, #8e44ad);">▶️ Execute & Debug</button>
+    <button class="btn" id="voiceBtn" style="background: linear-gradient(135deg, #f39c12, #e67e22);">🎤 Voice Control</button>
     <button class="btn btn-danger" id="clearBtn">🗑️ Clear Session</button>
 
     <div id="status">Ready to debug...</div>
+
+    <div class="control-group" id="voiceControls" style="display: none;">
+      <label>Voice Commands</label>
+      <div style="font-size: 10px; color: #888; line-height: 1.4;">
+        Say: "analyze", "visualize", "execute", "set breakpoint", "show variables", "next step"
+      </div>
+    </div>
 
     <div id="help-text">
       <strong>Controls:</strong><br>
       • Mouse: Look around<br>
       • Click: Interact with nodes<br>
-      • WASD: Move (desktop)
+      • WASD: Move (desktop)<br>
+      • Voice: Enable for commands<br>
+      <br>
+      <strong>Model:</strong> <span id="modelStatus">Loading CodeBERT...</span>
     </div>
+  </div>
+
+  <!-- Execution Panel -->
+  <div id="execution-panel" style="display: none;">
+    <h3>Execution State</h3>
+    <div id="execution-step">Step: 0</div>
+    <div id="execution-variables"></div>
+    <button class="btn btn-secondary" id="stepBtn">Next Step</button>
+    <button class="btn btn-secondary" id="continueBtn">Continue</button>
   </div>
   
   <!-- Load Scripts -->
-  <script type="module" src="src/js/main.js"></script>
+  <script type="module" src="src/js/enhanced-main.js"></script>
 </body>
 </html>
