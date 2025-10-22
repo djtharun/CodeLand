@@ -8,49 +8,6 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <!-- UI Overlay -->
-  <div id="ui-overlay">
-    <h2>🔍 VR Debug Assistant</h2>
-    
-    <div class="control-group">
-      <label>Upload Code File</label>
-      <input type="file" id="fileInput" accept=".js,.py,.ts,.java,.cpp,.c,.cs,.txt">
-    </div>
-
-    <div class="control-group">
-      <label>Select Language</label>
-      <select id="langSelect">
-        <option value="javascript">JavaScript</option>
-        <option value="python">Python</option>
-        <option value="typescript">TypeScript</option>
-        <option value="java">Java</option>
-        <option value="csharp">C#</option>
-        <option value="cpp">C++</option>
-      </select>
-    </div>
-
-    <div class="control-group">
-      <label>Analysis Mode</label>
-      <select id="modeSelect">
-        <option value="static">Static Analysis</option>
-        <option value="ai">AI Analysis (API)</option>
-      </select>
-    </div>
-
-    <button class="btn" id="analyzeBtn">🤖 Analyze Code</button>
-    <button class="btn btn-secondary" id="visualizeBtn">📊 Visualize Flow</button>
-    <button class="btn btn-danger" id="clearBtn">🗑️ Clear Session</button>
-
-    <div id="status">Ready to debug...</div>
-
-    <div id="help-text">
-      <strong>Controls:</strong><br>
-      • Mouse: Look around<br>
-      • Click: Interact with nodes<br>
-      • WASD: Move (desktop)
-    </div>
-  </div>
-
   <!-- A-Frame VR Scene -->
   <a-scene background="color: #0a0e27" fog="type: exponential; color: #0a0e27; density: 0.1">
     <!-- Camera -->
@@ -135,7 +92,50 @@
     <a-plane rotation="-90 0 0" width="50" height="50" color="#0a0e27" shader="flat"></a-plane>
   </a-scene>
 
+  <!-- UI Overlay -->
+  <div id="ui-overlay">
+    <h2>🔍 VR Debug Assistant</h2>
+    
+    <div class="control-group">
+      <label>Upload Code File</label>
+      <input type="file" id="fileInput" accept=".js,.py,.ts,.java,.cpp,.c,.cs,.txt">
+    </div>
+
+    <div class="control-group">
+      <label>Select Language</label>
+      <select id="langSelect">
+        <option value="javascript">JavaScript</option>
+        <option value="python">Python</option>
+        <option value="typescript">TypeScript</option>
+        <option value="java">Java</option>
+        <option value="csharp">C#</option>
+        <option value="cpp">C++</option>
+      </select>
+    </div>
+
+    <div class="control-group">
+      <label>Analysis Mode</label>
+      <select id="modeSelect">
+        <option value="static">Static Analysis</option>
+        <option value="ai">AI Analysis (API)</option>
+      </select>
+    </div>
+
+    <button class="btn" id="analyzeBtn">🤖 Analyze Code</button>
+    <button class="btn btn-secondary" id="visualizeBtn">📊 Visualize Flow</button>
+    <button class="btn btn-danger" id="clearBtn">🗑️ Clear Session</button>
+
+    <div id="status">Ready to debug...</div>
+
+    <div id="help-text">
+      <strong>Controls:</strong><br>
+      • Mouse: Look around<br>
+      • Click: Interact with nodes<br>
+      • WASD: Move (desktop)
+    </div>
+  </div>
+  
   <!-- Load Scripts -->
-  <script type="module" src="../src/js/main.js"></script>
+  <script type="module" src="src/js/main.js"></script>
 </body>
 </html>
