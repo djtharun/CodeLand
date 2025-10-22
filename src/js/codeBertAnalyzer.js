@@ -29,7 +29,7 @@ class CodeBERTAnalyzer {
       // You need to place the CodeBERT ONNX model in /public/models/
       // Download from: https://huggingface.co/microsoft/codebert-base
       try {
-        this.session = await ort.InferenceSession.create('/models/codebert-base.onnx', {
+        this.session = await ort.InferenceSession.create('public/models/codebert-base.onnx', {
           executionProviders: ['wasm'],
           graphOptimizationLevel: 'all'
         });
@@ -52,7 +52,7 @@ class CodeBERTAnalyzer {
   async loadVocabulary() {
     try {
       // Load vocabulary file (vocab.json)
-      const response = await fetch('/models/vocab.json');
+      const response = await fetch('public/models/vocab.json');
       if (response.ok) {
         this.vocab = await response.json();
         console.log('Vocabulary loaded:', Object.keys(this.vocab).length, 'tokens');
@@ -585,20 +585,33 @@ class CodeBERTAnalyzer {
   }
 
   calculateCyclomaticComplexity(code) {
-    // McCabe's Cyclomatic Complexity
-    const keywords = ['if', 'else', 'for', 'while', 'case', 'catch', '&&', '||', '?'];
-    let complexity = 1;
-    
-    keywords.forEach(keyword => {
-      const pattern = new RegExp(`\\b${keyword}\\b`, 'g');
-      const matches = code.match(pattern);
-      if (matches) {
-        complexity += matches.length;
-      }
-    });
+  // McCabe's Cyclomatic Complexity
+  const keywords = ['if', 'else', 'for', 'while', 'case', 'catch'];
+  const operators = ['&&', '||', '?'];
+  
+  let complexity = 1;
+  
+  // Count keyword occurrences
+  keywords.forEach(keyword => {
+    const pattern = new RegExp('\\b' + keyword + '\\b', 'g');
+    const matches = code.match(pattern);
+    if (matches) {
+      complexity += matches.length;
+    }
+  });
+  
+  // Count operator occurrences (escape special regex characters)
+  operators.forEach(operator => {
+    const escapedOp = operator.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const pattern = new RegExp(escapedOp, 'g');
+    const matches = code.match(pattern);
+    if (matches) {
+      complexity += matches.length;
+    }
+  });
 
-    return complexity;
-  }
+  return complexity;
+} 
 
   formatForVR(analysisResult) {
     const { issues, summary, metrics, mlEnabled } = analysisResult;
