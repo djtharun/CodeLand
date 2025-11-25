@@ -10,5 +10,8 @@
   },
   "devDependencies": {
     "vercel": "^33.7.1"
+  },
+  "dependencies": {
+    "onnxruntime-web": "^1.23.2"
   }
 }
