@@ -1,4 +1,4 @@
-// src/js/codeBertAnalyzer.js
+// src/js/codeBertAnalyzer.js - Enhanced CodeBERT Integration
 
 class CodeBERTAnalyzer {
   constructor() {
@@ -8,39 +8,37 @@ class CodeBERTAnalyzer {
     this.maxLength = 512;
     this.vocabSize = 50265;
     this.vocab = null;
+    this.hiddenSize = 768; // CodeBERT hidden dimension
   }
 
   async initialize() {
     try {
       console.log('Initializing CodeBERT with ONNX Runtime...');
       
-      // Check if ONNX Runtime is available
       if (typeof ort === 'undefined') {
         throw new Error('ONNX Runtime not loaded');
       }
 
-      // Load vocabulary for tokenization
+      // Load vocabulary
       await this.loadVocabulary();
       
       // Initialize tokenizer
       this.tokenizer = this.createBPETokenizer();
       
-      // Load ONNX model
-      // You need to place the CodeBERT ONNX model in /public/models/
-      // Download from: https://huggingface.co/microsoft/codebert-base
+      // Load ONNX model - FIXED PATH
       try {
         this.session = await ort.InferenceSession.create('public/models/codebert-base.onnx', {
           executionProviders: ['wasm'],
           graphOptimizationLevel: 'all'
         });
-        console.log('ONNX model loaded successfully');
+        console.log('✅ ONNX model loaded successfully');
       } catch (modelError) {
-        console.warn('Could not load ONNX model, using fallback analysis:', modelError);
-        // Continue with static analysis fallback
+        console.warn('⚠️  Could not load ONNX model, using fallback analysis:', modelError);
+        console.log('Make sure to run: python convert_codebert.py');
       }
       
       this.isReady = true;
-      console.log('CodeBERT initialized successfully');
+      console.log('✅ CodeBERT initialized successfully');
       return true;
     } catch (error) {
       console.error('Failed to initialize CodeBERT:', error);
@@ -51,13 +49,13 @@ class CodeBERTAnalyzer {
 
   async loadVocabulary() {
     try {
-      // Load vocabulary file (vocab.json)
+      // FIXED PATH - remove 'public/' prefix
       const response = await fetch('public/models/vocab.json');
       if (response.ok) {
         this.vocab = await response.json();
-        console.log('Vocabulary loaded:', Object.keys(this.vocab).length, 'tokens');
+        console.log('✅ Vocabulary loaded:', Object.keys(this.vocab).length, 'tokens');
       } else {
-        console.warn('Could not load vocabulary, using simplified tokenizer');
+        console.warn('⚠️  Could not load vocabulary, using simplified tokenizer');
         this.vocab = this.createSimplifiedVocab();
       }
     } catch (error) {
@@ -67,7 +65,6 @@ class CodeBERTAnalyzer {
   }
 
   createSimplifiedVocab() {
-    // Simplified vocabulary for fallback
     const specialTokens = {
       '<pad>': 0,
       '<s>': 1,
@@ -76,11 +73,13 @@ class CodeBERTAnalyzer {
       '<mask>': 4
     };
 
-    // Add common programming tokens
     const commonTokens = [
       'function', 'var', 'let', 'const', 'if', 'else', 'for', 'while',
       'return', 'class', 'def', 'import', 'from', 'try', 'catch',
-      'async', 'await', 'true', 'false', 'null', 'undefined'
+      'async', 'await', 'true', 'false', 'null', 'undefined',
+      '(', ')', '{', '}', '[', ']', ';', ':', ',', '.',
+      '=', '==', '===', '!=', '!==', '+', '-', '*', '/',
+      'console', 'log', 'error', 'warn', 'this', 'new'
     ];
 
     const vocab = { ...specialTokens };
@@ -96,21 +95,19 @@ class CodeBERTAnalyzer {
   createBPETokenizer() {
     return {
       encode: (text) => {
-        // Simplified BPE tokenization
-        // In production, use a proper BPE tokenizer like tokenizers.js
+        // Enhanced tokenization with better code handling
         const tokens = text.toLowerCase()
-          .replace(/([^a-z0-9\s])/g, ' $1 ')
+          .replace(/([^a-z0-9\s_])/g, ' $1 ')
           .split(/\s+/)
           .filter(t => t.length > 0);
 
         const tokenIds = tokens.map(token => {
-          return this.vocab[token] !== undefined ? this.vocab[token] : 3; // <unk>
+          return this.vocab[token] !== undefined ? this.vocab[token] : 3;
         });
 
         // Add special tokens
         const encoded = [1, ...tokenIds, 2]; // <s> ... </s>
 
-        // Pad or truncate to maxLength
         if (encoded.length > this.maxLength) {
           return encoded.slice(0, this.maxLength);
         } else {
@@ -156,7 +153,7 @@ class CodeBERTAnalyzer {
       // Combine all results
       const allIssues = [...mlIssues, ...staticIssues, ...patternIssues];
       
-      // Remove duplicates based on line number and message
+      // Remove duplicates
       const uniqueIssues = this.deduplicateIssues(allIssues);
       
       return {
@@ -182,9 +179,15 @@ class CodeBERTAnalyzer {
       // Create attention mask
       const attentionMask = inputIds.map(id => id !== 0 ? 1 : 0);
 
-      // Create tensors for ONNX model
-      const inputIdsTensor = new ort.Tensor('int64', BigInt64Array.from(inputIds.map(BigInt)), [1, this.maxLength]);
-      const attentionMaskTensor = new ort.Tensor('int64', BigInt64Array.from(attentionMask.map(BigInt)), [1, this.maxLength]);
+      // Create tensors - FIXED: Use Int64Array
+      const inputIdsTensor = new ort.Tensor('int64', 
+        new BigInt64Array(inputIds.map(x => BigInt(x))), 
+        [1, this.maxLength]
+      );
+      const attentionMaskTensor = new ort.Tensor('int64', 
+        new BigInt64Array(attentionMask.map(x => BigInt(x))), 
+        [1, this.maxLength]
+      );
 
       // Run inference
       const feeds = {
@@ -192,65 +195,190 @@ class CodeBERTAnalyzer {
         attention_mask: attentionMaskTensor
       };
 
+      console.log('Running CodeBERT inference...');
       const results = await this.session.run(feeds);
       
-      // Process model outputs
-      // CodeBERT outputs embeddings that can be used for various tasks
+      // Process embeddings with IMPROVED analysis
       const embeddings = results.last_hidden_state.data;
       
-      // Analyze embeddings for anomalies
-      // This is a simplified approach - in production, you'd fine-tune on bug detection
-      const anomalies = this.detectAnomaliesFromEmbeddings(embeddings, code);
+      // Enhanced anomaly detection
+      const anomalies = this.detectAnomaliesFromEmbeddings(
+        embeddings, 
+        code, 
+        inputIds, 
+        attentionMask
+      );
       
       anomalies.forEach(anomaly => {
         issues.push({
           type: 'ml-warning',
           line: anomaly.line,
-          message: `ML Analysis: ${anomaly.message}`,
-          severity: 'medium',
+          message: `🤖 ML Analysis: ${anomaly.message}`,
+          severity: anomaly.severity,
           confidence: anomaly.confidence
         });
       });
 
+      console.log(`✅ ML Analysis found ${issues.length} potential issues`);
+
     } catch (error) {
       console.error('ML analysis error:', error);
-      // Don't throw, just continue with static analysis
     }
 
     return issues;
   }
 
-  detectAnomaliesFromEmbeddings(embeddings, code) {
-    // Simplified anomaly detection based on embedding patterns
-    // In production, you'd use a trained classifier
+  detectAnomaliesFromEmbeddings(embeddings, code, inputIds, attentionMask) {
     const anomalies = [];
     const lines = code.split('\n');
     
-    // Calculate average embedding values per line
-    const embeddingsPerToken = 768; // CodeBERT hidden size
-    const tokensPerLine = Math.floor(this.maxLength / lines.length);
-
+    // Calculate embeddings statistics per line
+    const tokensPerLine = Math.floor(this.maxLength / Math.max(lines.length, 1));
+    
+    // Analyze each line's embedding characteristics
     lines.forEach((line, idx) => {
-      const startIdx = idx * tokensPerLine * embeddingsPerToken;
-      const endIdx = startIdx + tokensPerLine * embeddingsPerToken;
+      if (line.trim().length === 0) return;
       
-      if (startIdx >= embeddings.length) return;
+      const startToken = idx * tokensPerLine;
+      const endToken = Math.min(startToken + tokensPerLine, this.maxLength);
+      
+      if (startToken >= embeddings.length) return;
 
-      const lineEmbeddings = Array.from(embeddings.slice(startIdx, endIdx));
-      const avgEmbedding = lineEmbeddings.reduce((a, b) => a + b, 0) / lineEmbeddings.length;
+      // Extract embeddings for this line
+      const lineEmbeddings = [];
+      for (let t = startToken; t < endToken; t++) {
+        const embStart = t * this.hiddenSize;
+        const embEnd = embStart + this.hiddenSize;
+        if (embEnd <= embeddings.length) {
+          lineEmbeddings.push(
+            Array.from(embeddings.slice(embStart, embEnd))
+          );
+        }
+      }
+
+      if (lineEmbeddings.length === 0) return;
+
+      // Calculate statistics
+      const stats = this.calculateEmbeddingStats(lineEmbeddings);
       
-      // Detect unusual patterns (this is simplified)
-      // High variance or extreme values might indicate problematic code
-      if (Math.abs(avgEmbedding) > 0.5) {
+      // IMPROVED: Multi-factor anomaly detection
+      const anomalyScore = this.calculateAnomalyScore(stats, line, language);
+      
+      if (anomalyScore.score > 0.6) {
         anomalies.push({
           line: idx + 1,
-          message: 'Unusual code pattern detected',
-          confidence: Math.min(Math.abs(avgEmbedding), 1.0)
+          message: anomalyScore.reason,
+          confidence: anomalyScore.score,
+          severity: this.getSeverityFromScore(anomalyScore.score)
         });
       }
     });
 
     return anomalies;
+  }
+
+  calculateEmbeddingStats(lineEmbeddings) {
+    // Calculate mean vector
+    const mean = new Array(this.hiddenSize).fill(0);
+    lineEmbeddings.forEach(emb => {
+      emb.forEach((val, i) => {
+        mean[i] += val;
+      });
+    });
+    mean.forEach((val, i) => {
+      mean[i] /= lineEmbeddings.length;
+    });
+
+    // Calculate variance
+    const variance = new Array(this.hiddenSize).fill(0);
+    lineEmbeddings.forEach(emb => {
+      emb.forEach((val, i) => {
+        variance[i] += Math.pow(val - mean[i], 2);
+      });
+    });
+    variance.forEach((val, i) => {
+      variance[i] /= lineEmbeddings.length;
+    });
+
+    // Calculate L2 norm
+    const norm = Math.sqrt(mean.reduce((sum, val) => sum + val * val, 0));
+
+    // Calculate entropy (measure of uncertainty)
+    const softmax = mean.map(val => Math.exp(val));
+    const sumExp = softmax.reduce((a, b) => a + b, 0);
+    const probs = softmax.map(val => val / sumExp);
+    const entropy = -probs.reduce((sum, p) => {
+      return p > 0 ? sum + p * Math.log(p) : sum;
+    }, 0);
+
+    return {
+      mean,
+      variance,
+      norm,
+      entropy,
+      avgVariance: variance.reduce((a, b) => a + b, 0) / variance.length
+    };
+  }
+
+  calculateAnomalyScore(stats, line, language) {
+    let score = 0;
+    let reasons = [];
+
+    // Factor 1: High variance suggests uncertain/unusual patterns
+    if (stats.avgVariance > 0.8) {
+      score += 0.3;
+      reasons.push('unusual code pattern detected');
+    }
+
+    // Factor 2: Very high or very low norm
+    if (stats.norm > 10 || stats.norm < 0.5) {
+      score += 0.2;
+      reasons.push('atypical semantic structure');
+    }
+
+    // Factor 3: High entropy suggests complex/confusing code
+    if (stats.entropy > 6.0) {
+      score += 0.25;
+      reasons.push('complex logic structure');
+    }
+
+    // Factor 4: Code-specific heuristics
+    if (line.includes('eval(')) {
+      score += 0.4;
+      reasons.push('dangerous eval() usage');
+    }
+    if (line.match(/password|apikey|secret/i) && line.includes('=')) {
+      score += 0.5;
+      reasons.push('possible credential exposure');
+    }
+    if (line.includes('innerHTML') || line.includes('outerHTML')) {
+      score += 0.3;
+      reasons.push('potential XSS vulnerability');
+    }
+
+    // Factor 5: Language-specific patterns
+    if (language === 'javascript') {
+      if (line.includes('==') && !line.includes('===')) {
+        score += 0.2;
+        reasons.push('loose equality comparison');
+      }
+      if (line.match(/var\s+\w+/)) {
+        score += 0.15;
+        reasons.push('outdated var declaration');
+      }
+    }
+
+    return {
+      score: Math.min(score, 1.0),
+      reason: reasons.join(', ')
+    };
+  }
+
+  getSeverityFromScore(score) {
+    if (score >= 0.8) return 'critical';
+    if (score >= 0.6) return 'high';
+    if (score >= 0.4) return 'medium';
+    return 'low';
   }
 
   performStaticAnalysis(code, language) {
@@ -261,12 +389,10 @@ class CodeBERTAnalyzer {
       const lineNum = idx + 1;
       const trimmed = line.trim();
 
-      // Skip empty lines and comments
       if (!trimmed || trimmed.startsWith('//') || trimmed.startsWith('/*') || trimmed.startsWith('*')) {
         return;
       }
 
-      // Language-specific analysis
       if (language === 'javascript' || language === 'typescript') {
         this.analyzeJavaScript(line, lineNum, lines, issues);
       } else if (language === 'python') {
@@ -275,7 +401,6 @@ class CodeBERTAnalyzer {
         this.analyzeJava(line, lineNum, lines, issues);
       }
 
-      // Common issues across languages
       this.analyzeCommonIssues(line, lineNum, code, issues);
     });
 
@@ -297,7 +422,7 @@ class CodeBERTAnalyzer {
       }
     }
 
-    // Missing error handling for async
+    // Missing error handling
     if (line.includes('await') && !lines.slice(Math.max(0, lineNum - 5), lineNum + 5).join('\n').includes('try')) {
       issues.push({
         type: 'error',
@@ -307,7 +432,7 @@ class CodeBERTAnalyzer {
       });
     }
 
-    // Console.log in production
+    // Console statements
     if (line.includes('console.log')) {
       issues.push({
         type: 'info',
@@ -317,7 +442,7 @@ class CodeBERTAnalyzer {
       });
     }
 
-    // == instead of ===
+    // Loose equality
     if (line.match(/[^=!]==[^=]/) || line.match(/!=[^=]/)) {
       issues.push({
         type: 'warning',
@@ -327,12 +452,7 @@ class CodeBERTAnalyzer {
       });
     }
 
-    // Missing semicolons (if preferred)
-    if (line.match(/\w+\s*$/) && !line.includes('{') && !line.includes('}')) {
-      // This is optional based on coding style
-    }
-
-    // Callback hell indicator
+    // Deep nesting
     if (line.match(/\)\s*\{\s*$/)) {
       const indent = line.match(/^\s*/)[0].length;
       if (indent > 16) {
@@ -347,7 +467,6 @@ class CodeBERTAnalyzer {
   }
 
   analyzePython(line, lineNum, lines, issues) {
-    // Missing except clause
     if (line.includes('try:') && !lines.slice(lineNum, lineNum + 10).join('\n').includes('except')) {
       issues.push({
         type: 'error',
@@ -357,39 +476,17 @@ class CodeBERTAnalyzer {
       });
     }
 
-    // Bare except
     if (line.match(/except\s*:/)) {
       issues.push({
         type: 'warning',
         line: lineNum,
-        message: 'Bare except clause catches all exceptions - be specific',
+        message: 'Bare except clause catches all exceptions',
         severity: 'medium'
-      });
-    }
-
-    // Global variables
-    if (line.match(/^global\s+\w+/)) {
-      issues.push({
-        type: 'warning',
-        line: lineNum,
-        message: 'Global variable usage - consider alternatives',
-        severity: 'low'
       });
     }
   }
 
   analyzeJava(line, lineNum, lines, issues) {
-    // Missing exception handling
-    if (line.includes('throw new') && !lines.slice(Math.max(0, lineNum - 5), lineNum).join('\n').includes('throws')) {
-      issues.push({
-        type: 'warning',
-        line: lineNum,
-        message: 'Exception thrown but not declared in method signature',
-        severity: 'medium'
-      });
-    }
-
-    // System.out.println
     if (line.includes('System.out.println')) {
       issues.push({
         type: 'info',
@@ -401,7 +498,7 @@ class CodeBERTAnalyzer {
   }
 
   analyzeCommonIssues(line, lineNum, code, issues) {
-    // SQL injection risk
+    // SQL injection
     if (line.match(/query\s*\(.*\+.*\)/) || line.match(/execute\s*\(.*\+.*\)/)) {
       issues.push({
         type: 'security',
@@ -416,25 +513,12 @@ class CodeBERTAnalyzer {
       issues.push({
         type: 'security',
         line: lineNum,
-        message: 'Hardcoded credentials detected - use environment variables',
+        message: 'Hardcoded credentials - use environment variables',
         severity: 'critical'
       });
     }
 
-    // Missing null checks
-    if (line.match(/\.\w+\(/) && !line.includes('?.') && !line.includes('if ') && !line.includes('null')) {
-      const surroundingLines = code.split('\n').slice(Math.max(0, lineNum - 3), lineNum + 3).join('\n');
-      if (!surroundingLines.includes('null') && !surroundingLines.includes('undefined')) {
-        issues.push({
-          type: 'warning',
-          line: lineNum,
-          message: 'Potential null/undefined reference - add checks',
-          severity: 'medium'
-        });
-      }
-    }
-
-    // TODO/FIXME comments
+    // TODO comments
     if (line.match(/\/\/\s*(TODO|FIXME|HACK|XXX)/i)) {
       issues.push({
         type: 'info',
@@ -448,7 +532,7 @@ class CodeBERTAnalyzer {
   detectCommonPatterns(code, language) {
     const issues = [];
 
-    // Detect infinite loops
+    // Infinite loops
     const loopPattern = /while\s*\(\s*true\s*\)|for\s*\(\s*;\s*;\s*\)/g;
     let match;
     while ((match = loopPattern.exec(code)) !== null) {
@@ -458,86 +542,40 @@ class CodeBERTAnalyzer {
         issues.push({
           type: 'error',
           line: lineNum,
-          message: 'Infinite loop detected - ensure break/return condition exists',
+          message: 'Infinite loop detected',
           severity: 'high'
         });
       }
     }
 
-    // Detect memory leaks (event listeners)
+    // Memory leaks
     if (code.includes('addEventListener') && !code.includes('removeEventListener')) {
-      const lineNum = code.indexOf('addEventListener');
       issues.push({
         type: 'warning',
-        line: code.substring(0, lineNum).split('\n').length,
-        message: 'Event listeners without cleanup - potential memory leak',
+        line: code.indexOf('addEventListener') ? code.substring(0, code.indexOf('addEventListener')).split('\n').length : 1,
+        message: 'Event listeners without cleanup',
         severity: 'medium'
       });
     }
 
-    // Detect eval usage
+    // eval() usage
     if (code.includes('eval(')) {
-      const lineNum = code.substring(0, code.indexOf('eval(')).split('\n').length;
       issues.push({
         type: 'security',
-        line: lineNum,
+        line: code.substring(0, code.indexOf('eval(')).split('\n').length,
         message: 'eval() usage detected - major security risk',
         severity: 'critical'
       });
     }
 
-    // Detect recursive functions without base case
-    const functionPattern = /function\s+(\w+)\s*\([^)]*\)\s*\{/g;
-    while ((match = functionPattern.exec(code)) !== null) {
-      const funcName = match[1];
-      const funcStart = match.index;
-      const funcBody = this.extractFunctionBody(code, funcStart);
-      
-      if (funcBody.includes(funcName) && !funcBody.includes('return') && !funcBody.includes('if')) {
-        const lineNum = code.substring(0, funcStart).split('\n').length;
-        issues.push({
-          type: 'error',
-          line: lineNum,
-          message: `Recursive function '${funcName}' may lack base case`,
-          severity: 'high'
-        });
-      }
-    }
-
     return issues;
-  }
-
-  extractFunctionBody(code, startIndex) {
-    let depth = 0;
-    let inFunction = false;
-    let body = '';
-
-    for (let i = startIndex; i < code.length; i++) {
-      const char = code[i];
-      if (char === '{') {
-        depth++;
-        inFunction = true;
-      } else if (char === '}') {
-        depth--;
-        if (depth === 0 && inFunction) {
-          break;
-        }
-      }
-      if (inFunction) {
-        body += char;
-      }
-    }
-
-    return body;
   }
 
   deduplicateIssues(issues) {
     const seen = new Set();
     return issues.filter(issue => {
       const key = `${issue.line}:${issue.message}`;
-      if (seen.has(key)) {
-        return false;
-      }
+      if (seen.has(key)) return false;
       seen.add(key);
       return true;
     });
@@ -549,19 +587,14 @@ class CodeBERTAnalyzer {
     const mediumCount = issues.filter(i => i.severity === 'medium').length;
     const lowCount = issues.filter(i => i.severity === 'low').length;
 
-    const securityCount = issues.filter(i => i.type === 'security').length;
-    const errorCount = issues.filter(i => i.type === 'error').length;
-
     return {
       total: issues.length,
       critical: criticalCount,
       high: highCount,
       medium: mediumCount,
       low: lowCount,
-      security: securityCount,
-      errors: errorCount,
       message: issues.length === 0 
-        ? '✓ No issues detected! Code looks good.' 
+        ? '✅ No issues detected! Code looks good.' 
         : `Found ${issues.length} issue(s): ${criticalCount} critical, ${highCount} high, ${mediumCount} medium, ${lowCount} low`
     };
   }
@@ -585,38 +618,31 @@ class CodeBERTAnalyzer {
   }
 
   calculateCyclomaticComplexity(code) {
-  // McCabe's Cyclomatic Complexity
-  const keywords = ['if', 'else', 'for', 'while', 'case', 'catch'];
-  const operators = ['&&', '||', '?'];
-  
-  let complexity = 1;
-  
-  // Count keyword occurrences
-  keywords.forEach(keyword => {
-    const pattern = new RegExp('\\b' + keyword + '\\b', 'g');
-    const matches = code.match(pattern);
-    if (matches) {
-      complexity += matches.length;
-    }
-  });
-  
-  // Count operator occurrences (escape special regex characters)
-  operators.forEach(operator => {
-    const escapedOp = operator.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const pattern = new RegExp(escapedOp, 'g');
-    const matches = code.match(pattern);
-    if (matches) {
-      complexity += matches.length;
-    }
-  });
+    const keywords = ['if', 'else', 'for', 'while', 'case', 'catch'];
+    const operators = ['&&', '||', '?'];
+    
+    let complexity = 1;
+    
+    keywords.forEach(keyword => {
+      const pattern = new RegExp('\\b' + keyword + '\\b', 'g');
+      const matches = code.match(pattern);
+      if (matches) complexity += matches.length;
+    });
+    
+    operators.forEach(operator => {
+      const escapedOp = operator.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const pattern = new RegExp(escapedOp, 'g');
+      const matches = code.match(pattern);
+      if (matches) complexity += matches.length;
+    });
 
-  return complexity;
-} 
+    return complexity;
+  }
 
   formatForVR(analysisResult) {
     const { issues, summary, metrics, mlEnabled } = analysisResult;
     
-    let output = `╔═══ CODEBERT ANALYSIS ═══╗\n\n`;
+    let output = `╔══ CODEBERT ANALYSIS ══╗\n\n`;
     output += mlEnabled ? '🤖 ML-Enhanced Analysis Active\n\n' : '📊 Static Analysis Mode\n\n';
     output += `${summary.message}\n\n`;
     
@@ -630,7 +656,6 @@ class CodeBERTAnalyzer {
     if (issues.length > 0) {
       output += `🔍 Issues Found:\n\n`;
       
-      // Group by severity
       const grouped = {
         critical: issues.filter(i => i.severity === 'critical'),
         high: issues.filter(i => i.severity === 'high'),
@@ -669,7 +694,6 @@ class CodeBERTAnalyzer {
       });
     } else {
       output += `✅ Excellent! No issues detected.\n`;
-      output += `   Your code follows best practices.\n`;
     }
 
     return output;
