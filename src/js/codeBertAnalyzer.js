@@ -27,7 +27,7 @@ class CodeBERTAnalyzer {
       
       // Load ONNX model - FIXED PATH
       try {
-        this.session = await ort.InferenceSession.create('public/models/codebert-base.onnx', {
+        this.session = await ort.InferenceSession.create('/models/codebert-base.onnx', {
           executionProviders: ['wasm'],
           graphOptimizationLevel: 'all'
         });
@@ -50,7 +50,7 @@ class CodeBERTAnalyzer {
   async loadVocabulary() {
     try {
       // FIXED PATH - remove 'public/' prefix
-      const response = await fetch('public/models/vocab.json');
+      const response = await fetch('/models/vocab.json');
       if (response.ok) {
         this.vocab = await response.json();
         console.log('✅ Vocabulary loaded:', Object.keys(this.vocab).length, 'tokens');
