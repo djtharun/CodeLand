@@ -9,3 +9,4 @@ build/
 models/*.onnx
 models/*.onnx.data
 models/quantized/
+src/js/res/*
