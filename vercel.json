@@ -2,12 +2,11 @@
   "version": 2,
   "builds": [
     {
-      "src": "index.html",
-      "use": "@vercel/static"
-    },
-    {
-      "src": "api/**/*.js",
-      "use": "@vercel/node"
+      "src": "package.json",
+      "use": "@vercel/static-build",
+      "config": {
+        "distDir": "."
+      }
     }
   ],
   "routes": [
@@ -16,11 +15,33 @@
       "dest": "/api/$1"
     },
     {
+      "src": "/(.*\\.js)",
+      "dest": "/$1",
+      "headers": {
+        "Content-Type": "application/javascript"
+      }
+    },
+    {
+      "src": "/(.*\\.css)",
+      "dest": "/$1",
+      "headers": {
+        "Content-Type": "text/css"
+      }
+    },
+    {
       "src": "/(.*)",
       "dest": "/$1"
     }
   ],
-  "env": {
-    "OPENROUTER_API_KEY": "@openrouter_api_key"
-  }
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "Access-Control-Allow-Origin",
+          "value": "*"
+        }
+      ]
+    }
+  ]
 }
